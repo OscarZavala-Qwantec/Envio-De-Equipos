@@ -48,7 +48,7 @@
       <section id="clientes" class="view">
         <div class="section-head">
           <div><h2>Clientes y envíos</h2><p>Abre un cliente para agregar series, tracking, documentos y fechas.</p></div>
-          <button class="primary dark" data-action="new-client">+ Agregar cliente</button>
+          <div class="section-actions"><button class="secondary" data-action="bulk-clients">Carga masiva</button><button class="primary dark" data-action="new-client">+ Agregar cliente</button></div>
         </div>
         <div class="toolbar"><input id="client-search" placeholder="Buscar por RUC, razón social o contacto..."></div>
         <div class="panel"><div class="table-wrap"><table><thead><tr><th>RUC</th><th>Razón social</th><th>Contacto</th><th>Envíos</th><th>Último envío</th><th>Acciones</th></tr></thead><tbody id="clients-table"></tbody></table></div></div>
@@ -67,6 +67,6 @@
   </div>
 
   <div id="modal" class="modal hidden"><div class="modal-card"><button id="modal-close" class="modal-close">×</button><div id="modal-content"></div></div></div>
-  <script type="module" src="app.js?v=20260903-10"></script>
+  <script type="module" src="app.js?v=20260903-11"></script>
 </body>
 </html>
