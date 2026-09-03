@@ -28,14 +28,14 @@
       <section id="dashboard" class="view active">
         <div class="hero">
           <div><span class="eyebrow">CONTROL DE ENVÍOS</span><h2>Clientes y despachos, sin pasos innecesarios.</h2>
-          <p>Registra al cliente y agrega sus series, tracking, fecha y PDF desde una sola ficha.</p></div>
+          <p>Registra al cliente y agrega sus series, tracking, fecha, imágenes o PDF desde una sola ficha.</p></div>
           <button class="primary" data-action="new-client">+ Nuevo cliente</button>
         </div>
         <div class="stats">
           <div class="stat"><span>Clientes</span><strong id="stat-clients">0</strong></div>
           <div class="stat"><span>Envíos registrados</span><strong id="stat-shipments">0</strong></div>
           <div class="stat"><span>Envíos este mes</span><strong id="stat-month">0</strong></div>
-          <div class="stat"><span>PDF adjuntos</span><strong id="stat-pdf">0</strong></div>
+          <div class="stat"><span>Archivos adjuntos</span><strong id="stat-pdf">0</strong></div>
         </div>
         <div class="panel">
           <div class="panel-head"><h3>Últimos envíos</h3><button class="ghost" data-view-link="calendario">Ver calendario</button></div>
@@ -53,7 +53,7 @@
       </section>
 
       <section id="calendario" class="view">
-        <div class="section-head"><div><h2>Calendario de envíos</h2><p>Cada PDF o tracking queda registrado en la fecha en que fue enviado.</p></div></div>
+        <div class="section-head"><div><h2>Calendario de envíos</h2><p>Cada archivo o tracking queda registrado en la fecha en que fue enviado.</p></div></div>
         <div class="toolbar"><input id="calendar-search" placeholder="Filtrar por RUC, razón social, contacto, serie o tracking..."></div>
         <div class="calendar-panel panel">
           <div class="calendar-controls"><button id="prev-month" class="icon-btn">‹</button><h3 id="month-label"></h3><button id="next-month" class="icon-btn">›</button><button id="today" class="ghost calendar-today">Hoy</button></div>
@@ -65,6 +65,6 @@
   </div>
 
   <div id="modal" class="modal hidden"><div class="modal-card"><button id="modal-close" class="modal-close">×</button><div id="modal-content"></div></div></div>
-  <script src="app.js?v=20260903-3"></script>
+  <script src="app.js?v=20260903-5"></script>
 </body>
 </html>
