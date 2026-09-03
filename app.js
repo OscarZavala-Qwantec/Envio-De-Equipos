@@ -1,6 +1,7 @@
 import {initializeApp} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
-import {getFirestore,collection,addDoc,updateDoc,deleteDoc,doc,onSnapshot,serverTimestamp} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import {getFirestore,collection,addDoc,updateDoc,deleteDoc,doc,onSnapshot,serverTimestamp,writeBatch} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import {createClient} from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import * as XLSX from "https://esm.sh/xlsx@0.18.5";
 import jsQR from "https://esm.sh/jsqr@1.4.0";
 import * as pdfjsLib from "https://esm.sh/pdfjs-dist@4.10.38/build/pdf.mjs";
 pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
@@ -39,16 +40,22 @@ function show(v){document.querySelectorAll(".view").forEach(x=>x.classList.toggl
 document.addEventListener("click",e=>{
   const a=e.target.closest("[data-action]");if(!a)return;
   if(a.dataset.action==="new-client") modal("Agregar cliente",`<form class="form" id="client-form"><label>RUC<input name="ruc" inputmode="numeric" maxlength="11" required placeholder="11 dígitos"></label><label>Razón social<input name="razon" required></label><label>Contacto / teléfono<input name="contacto" required></label><p class="form-help">Las series, tracking y PDF se agregan después, dentro de la ficha del cliente.</p><button>Guardar y abrir cliente</button></form>`);
+  if(a.dataset.action==="bulk-clients") modal("Carga masiva de clientes",`<form class="form" id="bulk-client-form"><div class="import-guide"><b>Columnas requeridas</b><span>RUC · RAZON SOCIAL · TELEFONO</span><small>Se leerá la primera hoja. El teléfono se limpiará automáticamente: por ejemplo, +51 999-999-999 quedará como 999999999.</small></div><label>Archivo Excel<input name="file" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" required></label><button>Importar clientes</button></form>`);
   if(a.dataset.action==="open-client") openClient(a.dataset.id);
   if(a.dataset.action==="new-shipment") openShipmentForm(a.dataset.id);
   if(a.dataset.action==="edit-shipment") openShipmentForm(a.dataset.client,a.dataset.id);
   if(a.dataset.action==="open-file") openFile(a.dataset.id);
   if(a.dataset.action==="whatsapp") openWhatsApp(a.dataset.id);
   if(a.dataset.action==="delete-shipment"&&confirm("¿Eliminar este envío y su archivo adjunto?"))deleteShipment(a.dataset.id,a.dataset.client);
+  if(a.dataset.action==="close-import")close();
 });
 
 document.addEventListener("submit",async e=>{
   e.preventDefault();const f=new FormData(e.target);
+  if(e.target.id==="bulk-client-form"){
+    const file=f.get("file");if(!file?.size)return alert("Selecciona un archivo Excel.");
+    await importClients(file);return;
+  }
   if(e.target.id==="client-form"){
     const ruc=String(f.get("ruc")).trim();
     if(!/^\d{11}$/.test(ruc))return alert("El RUC debe tener 11 dígitos.");
@@ -67,6 +74,23 @@ document.addEventListener("submit",async e=>{
     try{setCloudStatus("Guardando...");if(shipmentId){await updateDoc(doc(db,"envioRegistros",shipmentId),payload);if(newFilePath&&existing?.documento?.path&&existing.documento.path!==newFilePath)await supabase.storage.from("workera-envios").remove([existing.documento.path]);}else await addDoc(shipmentsRef,{...payload,creadoEn:serverTimestamp()});close();}catch(error){if(newFilePath)await supabase.storage.from("workera-envios").remove([newFilePath]);firebaseError(error);}
   }
 });
+
+function cleanExcelRow(row){const values={};for(const [key,value] of Object.entries(row))values[normalize(key).replace(/[^a-z0-9]/g,"")]=value;return values;}
+function cleanRuc(value){return String(value??"").replace(/\D/g,"");}
+function cleanPhone(value){let digits=String(value??"").replace(/\D/g,"");if(digits.length===11&&digits.startsWith("51"))digits=digits.slice(2);else if(digits.length>9)digits=digits.slice(-9);return digits;}
+async function importClients(file){
+  try{
+    setCloudStatus("Leyendo Excel...");
+    const workbook=XLSX.read(await file.arrayBuffer(),{type:"array"}),sheet=workbook.Sheets[workbook.SheetNames[0]],rows=XLSX.utils.sheet_to_json(sheet,{defval:"",raw:false});
+    if(!rows.length)return alert("El archivo no contiene clientes.");
+    const existing=new Set(state.clients.map(c=>cleanRuc(c.ruc))),seen=new Set(),valid=[],errors=[];let duplicates=0;
+    rows.forEach((source,index)=>{const row=cleanExcelRow(source),ruc=cleanRuc(row.ruc),razon=String(row.razonsocial??"").trim(),contacto=cleanPhone(row.telefono);const reasons=[];if(!/^\d{11}$/.test(ruc))reasons.push("RUC inválido");if(!razon)reasons.push("falta razón social");if(!/^9\d{8}$/.test(contacto))reasons.push("teléfono inválido");if(existing.has(ruc)||seen.has(ruc)){duplicates++;return;}if(reasons.length){errors.push(`Fila ${index+2}: ${reasons.join(", ")}`);return;}seen.add(ruc);valid.push({ruc,razon,contacto});});
+    if(!valid.length){showImportResult(0,duplicates,errors);return;}
+    for(let start=0;start<valid.length;start+=450){const chunk=valid.slice(start,start+450),batch=writeBatch(db);chunk.forEach(client=>batch.set(doc(clientsRef),{...client,creadoEn:serverTimestamp()}));setCloudStatus(`Importando ${Math.min(start+chunk.length,valid.length)} de ${valid.length}...`);await batch.commit();}
+    setCloudStatus("Sincronizado");showImportResult(valid.length,duplicates,errors);
+  }catch(error){firebaseError(error);}
+}
+function showImportResult(imported,duplicates,errors){modal("Resultado de la importación",`<div class="import-result"><div><strong>${imported}</strong><span>Importados</span></div><div><strong>${duplicates}</strong><span>Duplicados</span></div><div><strong>${errors.length}</strong><span>Con errores</span></div></div>${errors.length?`<div class="import-errors"><b>Filas no importadas</b>${errors.slice(0,25).map(error=>`<span>${esc(error)}</span>`).join("")}${errors.length>25?`<small>Y ${errors.length-25} errores más.</small>`:""}</div>`:"<p class=\"form-help\">Todos los registros válidos se importaron correctamente.</p>"}<button class="primary dark" data-action="close-import">Aceptar</button>`);}
 
 document.addEventListener("change",async e=>{
   if(e.target.name!=="file"||e.target.form?.id!=="shipment-form")return;
