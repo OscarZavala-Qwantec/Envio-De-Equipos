@@ -1,29 +1,25 @@
 # Workera · Gestión de Envíos
 
-Sistema web moderno para gestionar clientes, tickets/tracking, calendario de envíos e inventario.
+Aplicación web ligera para registrar clientes y administrar sus envíos desde una sola ficha.
 
-## Incluye
-- **Resumen:** indicadores y próximos envíos.
-- **Clientes:** RUC, razón social, contacto y series.
-- **Tickets / Tracking:** cliente, RUC, serie, código de tracking y nombre de archivo PDF/imagen.
-- **Calendario:** marcar días disponibles/no disponibles y programar envíos.
-- **Inventario:** serie, modelo, cliente, ubicación y estado.
-- Diseño responsive inspirado en el logo Workera, con blanco/negro y acentos discretos.
-- Persistencia local temporal mediante `localStorage` para poder probar la interfaz inmediatamente.
+## Flujo práctico
 
-## Preparación para Firebase
-La estructura está separada para sustituir `localStorage` por Firebase/Firestore y Storage:
-- `clients`
-- `tickets`
-- `equipment`
-- `shipments`
-- `calendarAvailability`
+1. Crear el cliente usando únicamente **RUC, razón social y contacto**.
+2. Abrir su ficha y agregar uno o varios envíos.
+3. En cada envío registrar **fecha, serie, tracking, PDF y observación**.
+4. La fecha se muestra automáticamente en el calendario.
+5. El calendario se puede filtrar por **RUC, razón social, contacto, serie o tracking**.
 
-Los archivos adjuntos deben almacenarse en **Firebase Storage** y guardar en Firestore la URL, nombre, tipo y referencia del documento.
+## Funciones
 
-## Siguiente integración recomendada
-1. Firebase Authentication para usuarios.
-2. Firestore para clientes, envíos, tickets, inventario y disponibilidad.
-3. Firebase Storage para PDFs e imágenes.
-4. Reglas de seguridad por rol.
-5. Historial de cambios y auditoría.
+- Validación de RUC de 11 dígitos y prevención de RUC duplicados.
+- Historial completo dentro de cada cliente.
+- Adjuntos PDF con vista en otra pestaña.
+- Calendario mensual con varios envíos por día.
+- Buscadores rápidos en Clientes y Calendario.
+- Diseño responsive para computadora y celular.
+- Persistencia de prueba mediante `localStorage`.
+
+## Importante sobre los PDF
+
+Esta versión guarda el PDF en el navegador para facilitar la prueba, con límite de 4 MB por archivo. Los datos no se comparten entre computadoras o navegadores. Para uso real multiusuario se debe integrar Firebase Authentication, Firestore y Firebase Storage.
