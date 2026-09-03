@@ -1,3 +1,11 @@
+import {initializeApp} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+import {getFirestore,collection,addDoc,deleteDoc,doc,onSnapshot,serverTimestamp} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import {getStorage,ref,uploadBytes,getDownloadURL,deleteObject} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
+
+const firebaseConfig={apiKey:"AIzaSyAO5gy-53kCBWV-vxNQlrRvzIR-p-IIycg",authDomain:"ous-workera.firebaseapp.com",projectId:"ous-workera",storageBucket:"ous-workera.firebasestorage.app",messagingSenderId:"779373746855",appId:"1:779373746855:web:98ed38d9abb7ed45839982",measurementId:"G-MPK93DMFEC"};
+const firebaseApp=initializeApp(firebaseConfig),db=getFirestore(firebaseApp),storage=getStorage(firebaseApp);
+const clientsRef=collection(db,"envioClientes"),shipmentsRef=collection(db,"envioRegistros");
+
 const state={
   clients:JSON.parse(localStorage.getItem("we_clients")||"[]"),
   shipments:JSON.parse(localStorage.getItem("we_shipments")||"[]"),
@@ -14,6 +22,11 @@ const clientShipments=id=>state.shipments.filter(s=>String(s.clientId)===String(
 const today=()=>new Date().toISOString().slice(0,10);
 const whatsappNumber=value=>{let n=String(value||"").replace(/\D/g,"");if(n.length===9)n="51"+n;return n;};
 const whatsappIcon='<svg class="whatsapp-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.04 2a9.84 9.84 0 0 0-8.42 14.93L2 22l5.2-1.58A9.9 9.9 0 1 0 12.04 2Zm0 17.98a8.1 8.1 0 0 1-4.13-1.13l-.3-.18-3.08.94.98-3-.2-.31a8.08 8.08 0 1 1 6.73 3.68Zm4.43-6.06c-.24-.12-1.44-.71-1.66-.79-.22-.08-.38-.12-.55.12-.16.24-.63.79-.77.95-.14.16-.28.18-.52.06-.24-.12-1.03-.38-1.96-1.21a7.35 7.35 0 0 1-1.36-1.69c-.14-.24-.02-.37.11-.49.11-.11.24-.28.36-.43.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.43-.06-.12-.55-1.31-.75-1.8-.2-.47-.4-.41-.55-.42h-.46c-.16 0-.42.06-.65.3-.22.24-.85.83-.85 2.02 0 1.19.87 2.34.99 2.5.12.16 1.7 2.6 4.13 3.65.58.25 1.03.4 1.38.51.58.18 1.1.16 1.52.1.46-.07 1.44-.59 1.64-1.16.2-.57.2-1.06.14-1.16-.06-.1-.22-.16-.46-.28Z"/></svg>';
+const setCloudStatus=(text,error=false)=>{const el=$("#cloud-status");if(el){el.classList.toggle("error",error);el.innerHTML=`<span class="status-dot"></span> ${esc(text)}`;}};
+const firebaseError=error=>{console.error(error);setCloudStatus("Sin conexión",true);alert(error?.code?.includes("permission-denied")||error?.code?.includes("unauthorized")?"Firebase rechazó la operación. Revisa las reglas de Firestore y Storage.":`No se pudo guardar en Firebase: ${error.message||error}`);};
+
+onSnapshot(clientsRef,snapshot=>{state.clients=snapshot.docs.map(d=>({id:d.id,...d.data()}));save();render();setCloudStatus("Sincronizado");},firebaseError);
+onSnapshot(shipmentsRef,snapshot=>{state.shipments=snapshot.docs.map(d=>({id:d.id,...d.data()}));save();render();setCloudStatus("Sincronizado");},firebaseError);
 
 $("#modal-close").onclick=close;
 document.querySelectorAll(".nav-item").forEach(b=>b.onclick=()=>show(b.dataset.view));
@@ -27,7 +40,7 @@ document.addEventListener("click",e=>{
   if(a.dataset.action==="new-shipment") openShipmentForm(a.dataset.id);
   if(a.dataset.action==="open-file") openFile(a.dataset.id);
   if(a.dataset.action==="whatsapp") openWhatsApp(a.dataset.id);
-  if(a.dataset.action==="delete-shipment"&&confirm("¿Eliminar este envío?")){state.shipments=state.shipments.filter(s=>String(s.id)!==String(a.dataset.id));save();const clientId=a.dataset.client;openClient(clientId);render();}
+  if(a.dataset.action==="delete-shipment"&&confirm("¿Eliminar este envío y su archivo adjunto?"))deleteShipment(a.dataset.id,a.dataset.client);
 });
 
 document.addEventListener("submit",async e=>{
@@ -36,7 +49,7 @@ document.addEventListener("submit",async e=>{
     const ruc=String(f.get("ruc")).trim();
     if(!/^\d{11}$/.test(ruc))return alert("El RUC debe tener 11 dígitos.");
     if(state.clients.some(c=>c.ruc===ruc))return alert("Ya existe un cliente con este RUC.");
-    const client={id:Date.now(),ruc,razon:String(f.get("razon")).trim(),contacto:String(f.get("contacto")).trim()};state.clients.push(client);save();openClient(client.id);render();
+    try{setCloudStatus("Guardando...");const result=await addDoc(clientsRef,{ruc,razon:String(f.get("razon")).trim(),contacto:String(f.get("contacto")).trim(),creadoEn:serverTimestamp()});close();setTimeout(()=>openClient(result.id),250);}catch(error){firebaseError(error);}
   }
   if(e.target.id==="shipment-form"){
     const file=f.get("file");let documento=null;
@@ -44,15 +57,15 @@ document.addEventListener("submit",async e=>{
       const allowed=["application/pdf","image/jpeg","image/png","image/webp"];
       if(!allowed.includes(file.type))return alert("Adjunta un PDF o una imagen JPG, PNG o WEBP.");
       if(file.size>4*1024*1024)return alert("El archivo no debe superar 4 MB en esta versión.");
-      documento={nombre:file.name,tipo:file.type,datos:await fileToDataUrl(file)};
+      try{setCloudStatus("Subiendo archivo...");const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");const path=`envios/${f.get("clientId")}/${Date.now()}-${safeName}`,fileRef=ref(storage,path);await uploadBytes(fileRef,file,{contentType:file.type});documento={nombre:file.name,tipo:file.type,url:await getDownloadURL(fileRef),path};}catch(error){firebaseError(error);return;}
     }
-    state.shipments.push({id:Date.now(),clientId:Number(f.get("clientId")),fecha:f.get("fecha"),serie:String(f.get("serie")||"").trim(),tracking:String(f.get("tracking")||"").trim(),nota:String(f.get("nota")||"").trim(),documento});
-    save();openClient(f.get("clientId"));render();
+    try{setCloudStatus("Guardando...");await addDoc(shipmentsRef,{clientId:String(f.get("clientId")),fecha:f.get("fecha"),serie:String(f.get("serie")||"").trim(),tracking:String(f.get("tracking")||"").trim(),nota:String(f.get("nota")||"").trim(),documento,creadoEn:serverTimestamp()});openClient(f.get("clientId"));}catch(error){if(documento?.path)deleteObject(ref(storage,documento.path)).catch(()=>{});firebaseError(error);}
   }
 });
 
 function fileToDataUrl(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);});}
-function openFile(id){const s=state.shipments.find(x=>String(x.id)===String(id));if(!s?.documento?.datos)return alert("Este envío no tiene un archivo adjunto.");const w=window.open();if(!w)return alert("Permite las ventanas emergentes para abrir el archivo.");w.location.href=s.documento.datos;}
+function openFile(id){const s=state.shipments.find(x=>String(x.id)===String(id)),url=s?.documento?.url||s?.documento?.datos;if(!url)return alert("Este envío no tiene un archivo adjunto.");const w=window.open();if(!w)return alert("Permite las ventanas emergentes para abrir el archivo.");w.location.href=url;}
+async function deleteShipment(id,clientId){try{const s=state.shipments.find(x=>String(x.id)===String(id));setCloudStatus("Eliminando...");if(s?.documento?.path)await deleteObject(ref(storage,s.documento.path)).catch(error=>{if(error.code!=="storage/object-not-found")throw error;});await deleteDoc(doc(db,"envioRegistros",String(id)));openClient(clientId);}catch(error){firebaseError(error);}}
 function openWhatsApp(clientId){const c=clientById(clientId),number=whatsappNumber(c?.contacto);if(number.length<9)return alert("El contacto de este cliente no contiene un número de WhatsApp válido.");const message=encodeURIComponent(`Hola, ${c.razon}. Le escribimos de Workera respecto a su envío.`);window.open(`https://wa.me/${number}?text=${message}`,"_blank","noopener");}
 function openShipmentForm(clientId){const c=clientById(clientId);if(!c)return;modal(`Nuevo envío · ${c.razon}`,`<form class="form" id="shipment-form"><input type="hidden" name="clientId" value="${c.id}"><div class="client-summary"><b>${esc(c.razon)}</b><span>RUC ${esc(c.ruc)} · ${esc(c.contacto)}</span></div><label>Fecha en que se envió<input name="fecha" type="date" value="${today()}" required></label><label>Serie del equipo<input name="serie" placeholder="Ej. ZK-2026-001"></label><label>Tracking / guía<input name="tracking" placeholder="Código de seguimiento"></label><label>Adjuntar imagen o PDF<input name="file" type="file" accept="application/pdf,image/jpeg,image/png,image/webp"><small>Formatos: PDF, JPG, PNG o WEBP. Máximo 4 MB.</small></label><label>Observación<textarea name="nota" rows="3" placeholder="Opcional"></textarea></label><button>Guardar envío</button></form>`);}
 function openClient(id){const c=clientById(id);if(!c)return;const list=clientShipments(id);modal(c.razon,`<div class="client-header"><div><span class="label">RUC</span><b>${esc(c.ruc)}</b></div><div><span class="label">CONTACTO</span><b>${esc(c.contacto)}</b></div><div class="client-actions"><button class="whatsapp-btn" data-action="whatsapp" data-id="${c.id}">${whatsappIcon} WhatsApp</button><button class="primary dark" data-action="new-shipment" data-id="${c.id}">+ Agregar envío</button></div></div><h3 class="subheading">Historial de envíos</h3><div class="shipment-list">${list.map(s=>shipmentRow(s,c,true)).join("")||'<div class="empty">Todavía no hay series, tracking ni PDF para este cliente.</div>'}</div>`,true);}
