@@ -25,7 +25,7 @@ document.addEventListener("click",e=>{
   if(a.dataset.action==="new-client") modal("Agregar cliente",`<form class="form" id="client-form"><label>RUC<input name="ruc" inputmode="numeric" maxlength="11" required placeholder="11 dígitos"></label><label>Razón social<input name="razon" required></label><label>Contacto / teléfono<input name="contacto" required></label><p class="form-help">Las series, tracking y PDF se agregan después, dentro de la ficha del cliente.</p><button>Guardar y abrir cliente</button></form>`);
   if(a.dataset.action==="open-client") openClient(a.dataset.id);
   if(a.dataset.action==="new-shipment") openShipmentForm(a.dataset.id);
-  if(a.dataset.action==="open-pdf") openPdf(a.dataset.id);
+  if(a.dataset.action==="open-file") openFile(a.dataset.id);
   if(a.dataset.action==="whatsapp") openWhatsApp(a.dataset.id);
   if(a.dataset.action==="delete-shipment"&&confirm("¿Eliminar este envío?")){state.shipments=state.shipments.filter(s=>String(s.id)!==String(a.dataset.id));save();const clientId=a.dataset.client;openClient(clientId);render();}
 });
@@ -41,8 +41,9 @@ document.addEventListener("submit",async e=>{
   if(e.target.id==="shipment-form"){
     const file=f.get("file");let documento=null;
     if(file&&file.size){
-      if(file.type!=="application/pdf")return alert("Adjunta únicamente un archivo PDF.");
-      if(file.size>4*1024*1024)return alert("El PDF no debe superar 4 MB en esta versión.");
+      const allowed=["application/pdf","image/jpeg","image/png","image/webp"];
+      if(!allowed.includes(file.type))return alert("Adjunta un PDF o una imagen JPG, PNG o WEBP.");
+      if(file.size>4*1024*1024)return alert("El archivo no debe superar 4 MB en esta versión.");
       documento={nombre:file.name,tipo:file.type,datos:await fileToDataUrl(file)};
     }
     state.shipments.push({id:Date.now(),clientId:Number(f.get("clientId")),fecha:f.get("fecha"),serie:String(f.get("serie")||"").trim(),tracking:String(f.get("tracking")||"").trim(),nota:String(f.get("nota")||"").trim(),documento});
@@ -51,11 +52,11 @@ document.addEventListener("submit",async e=>{
 });
 
 function fileToDataUrl(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);});}
-function openPdf(id){const s=state.shipments.find(x=>String(x.id)===String(id));if(!s?.documento?.datos)return alert("Este envío no tiene PDF adjunto.");const w=window.open();if(!w)return alert("Permite las ventanas emergentes para abrir el PDF.");w.location.href=s.documento.datos;}
+function openFile(id){const s=state.shipments.find(x=>String(x.id)===String(id));if(!s?.documento?.datos)return alert("Este envío no tiene un archivo adjunto.");const w=window.open();if(!w)return alert("Permite las ventanas emergentes para abrir el archivo.");w.location.href=s.documento.datos;}
 function openWhatsApp(clientId){const c=clientById(clientId),number=whatsappNumber(c?.contacto);if(number.length<9)return alert("El contacto de este cliente no contiene un número de WhatsApp válido.");const message=encodeURIComponent(`Hola, ${c.razon}. Le escribimos de Workera respecto a su envío.`);window.open(`https://wa.me/${number}?text=${message}`,"_blank","noopener");}
-function openShipmentForm(clientId){const c=clientById(clientId);if(!c)return;modal(`Nuevo envío · ${c.razon}`,`<form class="form" id="shipment-form"><input type="hidden" name="clientId" value="${c.id}"><div class="client-summary"><b>${esc(c.razon)}</b><span>RUC ${esc(c.ruc)} · ${esc(c.contacto)}</span></div><label>Fecha en que se envió<input name="fecha" type="date" value="${today()}" required></label><label>Serie del equipo<input name="serie" placeholder="Ej. ZK-2026-001"></label><label>Tracking / guía<input name="tracking" placeholder="Código de seguimiento"></label><label>Adjuntar PDF<input name="file" type="file" accept="application/pdf"><small>Máximo 4 MB.</small></label><label>Observación<textarea name="nota" rows="3" placeholder="Opcional"></textarea></label><button>Guardar envío</button></form>`);}
+function openShipmentForm(clientId){const c=clientById(clientId);if(!c)return;modal(`Nuevo envío · ${c.razon}`,`<form class="form" id="shipment-form"><input type="hidden" name="clientId" value="${c.id}"><div class="client-summary"><b>${esc(c.razon)}</b><span>RUC ${esc(c.ruc)} · ${esc(c.contacto)}</span></div><label>Fecha en que se envió<input name="fecha" type="date" value="${today()}" required></label><label>Serie del equipo<input name="serie" placeholder="Ej. ZK-2026-001"></label><label>Tracking / guía<input name="tracking" placeholder="Código de seguimiento"></label><label>Adjuntar imagen o PDF<input name="file" type="file" accept="application/pdf,image/jpeg,image/png,image/webp"><small>Formatos: PDF, JPG, PNG o WEBP. Máximo 4 MB.</small></label><label>Observación<textarea name="nota" rows="3" placeholder="Opcional"></textarea></label><button>Guardar envío</button></form>`);}
 function openClient(id){const c=clientById(id);if(!c)return;const list=clientShipments(id);modal(c.razon,`<div class="client-header"><div><span class="label">RUC</span><b>${esc(c.ruc)}</b></div><div><span class="label">CONTACTO</span><b>${esc(c.contacto)}</b></div><div class="client-actions"><button class="whatsapp-btn" data-action="whatsapp" data-id="${c.id}">${whatsappIcon} WhatsApp</button><button class="primary dark" data-action="new-shipment" data-id="${c.id}">+ Agregar envío</button></div></div><h3 class="subheading">Historial de envíos</h3><div class="shipment-list">${list.map(s=>shipmentRow(s,c,true)).join("")||'<div class="empty">Todavía no hay series, tracking ni PDF para este cliente.</div>'}</div>`,true);}
-function shipmentRow(s,c,actions=false){return `<article class="shipment-row"><div class="shipment-date"><b>${formatDate(s.fecha)}</b><span>${esc(s.serie)||"Sin serie"}</span></div><div><span class="label">TRACKING</span><b>${esc(s.tracking)||"Sin tracking"}</b><small>${esc(s.nota)||""}</small></div><div><span class="label">DOCUMENTO</span>${s.documento?`<button class="link-btn" data-action="open-pdf" data-id="${s.id}">📄 ${esc(s.documento.nombre)}</button>`:"<span>Sin PDF</span>"}</div>${actions?`<button class="danger-link" data-action="delete-shipment" data-id="${s.id}" data-client="${c.id}">Eliminar</button>`:""}</article>`;}
+function shipmentRow(s,c,actions=false){const isImage=s.documento?.tipo?.startsWith("image/");return `<article class="shipment-row"><div class="shipment-date"><b>${formatDate(s.fecha)}</b><span>${esc(s.serie)||"Sin serie"}</span></div><div><span class="label">TRACKING</span><b>${esc(s.tracking)||"Sin tracking"}</b><small>${esc(s.nota)||""}</small></div><div><span class="label">ARCHIVO</span>${s.documento?`<button class="link-btn" data-action="open-file" data-id="${s.id}">${isImage?"🖼️":"📄"} ${esc(s.documento.nombre)}</button>`:"<span>Sin archivo</span>"}</div>${actions?`<button class="danger-link" data-action="delete-shipment" data-id="${s.id}" data-client="${c.id}">Eliminar</button>`:""}</article>`;}
 
 $("#client-search").addEventListener("input",renderClients);
 $("#calendar-search").addEventListener("input",renderCalendar);
