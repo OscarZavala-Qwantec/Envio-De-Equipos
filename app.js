@@ -40,8 +40,8 @@ function show(v){document.querySelectorAll(".view").forEach(x=>x.classList.toggl
 document.addEventListener("click",e=>{
   const a=e.target.closest("[data-action]");if(!a)return;
   if(a.dataset.action==="new-client") modal("Agregar cliente",`<form class="form" id="client-form"><label>RUC<input name="ruc" inputmode="numeric" maxlength="11" required placeholder="11 dígitos"></label><label>Razón social<input name="razon" required></label><label>Contacto / teléfono<input name="contacto" required></label><p class="form-help">Las series, tracking y PDF se agregan después, dentro de la ficha del cliente.</p><button>Guardar y abrir cliente</button></form>`);
-  if(a.dataset.action==="bulk-clients") modal("Carga masiva de clientes",`<form class="form import-form" id="bulk-client-form"><div class="import-guide"><span class="import-icon">C</span><div><b>Prepara la primera hoja con estas columnas:</b><strong>RUC · RAZON SOCIAL · TELEFONO</strong><small>Ejemplo: +51 999-999-999 se guardará como 999999999.</small></div></div><label class="file-field"><span>Selecciona tu archivo Excel</span><input name="file" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" required></label><button>Importar clientes</button></form>`);
-  if(a.dataset.action==="bulk-series") modal("Importar series por RUC",`<form class="form import-form" id="bulk-series-form"><div class="import-guide yellow"><span class="import-icon">S</span><div><b>Prepara la primera hoja con estas columnas:</b><strong>RUC · SERIE</strong><small>Puedes repetir el mismo RUC en varias filas. Cada serie se agregará al inventario general del cliente.</small></div></div><label class="file-field"><span>Selecciona tu archivo Excel</span><input name="file" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" required></label><button>Importar series</button></form>`);
+  if(a.dataset.action==="bulk-clients") modal("Carga masiva de clientes",`<form class="form import-form" id="bulk-client-form"><div class="import-guide"><span class="import-icon">C</span><div><b>Prepara la primera hoja con estas columnas:</b><strong>RUC · RAZON SOCIAL · TELEFONO</strong><small>Ejemplo: +51 999-999-999 se guardará como 999999999.</small></div></div><div class="template-download"><div><b>¿No tienes el formato?</b><small>Descarga, completa y vuelve a subir esta plantilla.</small></div><button type="button" data-action="download-template" data-template="clients">↓ Descargar plantilla Excel</button></div><label class="file-field"><span>Selecciona tu archivo Excel completado</span><input name="file" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" required></label><button>Importar clientes</button></form>`);
+  if(a.dataset.action==="bulk-series") modal("Importar series por RUC",`<form class="form import-form" id="bulk-series-form"><div class="import-guide yellow"><span class="import-icon">S</span><div><b>Prepara la primera hoja con estas columnas:</b><strong>RUC · SERIE</strong><small>Puedes repetir el mismo RUC en varias filas. Cada serie se agregará al inventario general del cliente.</small></div></div><div class="template-download yellow"><div><b>¿No tienes el formato?</b><small>Descarga, completa y vuelve a subir esta plantilla.</small></div><button type="button" data-action="download-template" data-template="series">↓ Descargar plantilla Excel</button></div><label class="file-field"><span>Selecciona tu archivo Excel completado</span><input name="file" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" required></label><button>Importar series</button></form>`);
   if(a.dataset.action==="open-client") openClient(a.dataset.id);
   if(a.dataset.action==="new-shipment") openShipmentForm(a.dataset.id);
   if(a.dataset.action==="edit-shipment") openShipmentForm(a.dataset.client,a.dataset.id);
@@ -49,6 +49,7 @@ document.addEventListener("click",e=>{
   if(a.dataset.action==="whatsapp") openWhatsApp(a.dataset.id);
   if(a.dataset.action==="delete-shipment"&&confirm("¿Eliminar este envío y su archivo adjunto?"))deleteShipment(a.dataset.id,a.dataset.client);
   if(a.dataset.action==="delete-client-series"&&confirm(`¿Quitar la serie ${a.dataset.series} de este cliente?`))deleteClientSeries(a.dataset.id,a.dataset.series);
+  if(a.dataset.action==="download-template")downloadTemplate(a.dataset.template);
   if(a.dataset.action==="close-import")close();
 });
 
@@ -88,6 +89,12 @@ document.addEventListener("submit",async e=>{
 });
 
 function cleanExcelRow(row){const values={};for(const [key,value] of Object.entries(row))values[normalize(key).replace(/[^a-z0-9]/g,"")]=value;return values;}
+function downloadTemplate(type){
+  const clients=type==="clients",rows=clients?[["RUC","RAZON SOCIAL","TELEFONO"],["20123456789","EMPRESA DE EJEMPLO SAC","999999999"]]:[["RUC","SERIE"],["20123456789","EQ-000001"],["20123456789","EQ-000002"]];
+  const sheet=XLSX.utils.aoa_to_sheet(rows);sheet["!cols"]=clients?[{wch:16},{wch:34},{wch:16}]:[{wch:16},{wch:24}];
+  for(const address of Object.keys(sheet)){if(address.startsWith("!"))continue;sheet[address].t="s";sheet[address].z="@";}
+  const workbook=XLSX.utils.book_new();XLSX.utils.book_append_sheet(workbook,sheet,clients?"Clientes":"Series");XLSX.writeFile(workbook,clients?"Plantilla_clientes_Workera.xlsx":"Plantilla_series_Workera.xlsx");
+}
 function cleanRuc(value){return String(value??"").replace(/\D/g,"");}
 function cleanPhone(value){let digits=String(value??"").replace(/\D/g,"");if(digits.length===11&&digits.startsWith("51"))digits=digits.slice(2);else if(digits.length>9)digits=digits.slice(-9);return digits;}
 async function importClients(file){
