@@ -1,6 +1,9 @@
 import {initializeApp} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
 import {getFirestore,collection,addDoc,deleteDoc,doc,onSnapshot,serverTimestamp} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import {createClient} from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import jsQR from "https://esm.sh/jsqr@1.4.0";
+import * as pdfjsLib from "https://esm.sh/pdfjs-dist@4.10.38/build/pdf.mjs";
+pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
 
 const firebaseConfig={apiKey:"AIzaSyAO5gy-53kCBWV-vxNQlrRvzIR-p-IIycg",authDomain:"ous-workera.firebaseapp.com",projectId:"ous-workera",storageBucket:"ous-workera.firebasestorage.app",messagingSenderId:"779373746855",appId:"1:779373746855:web:98ed38d9abb7ed45839982",measurementId:"G-MPK93DMFEC"};
 const firebaseApp=initializeApp(firebaseConfig),db=getFirestore(firebaseApp);
@@ -63,10 +66,39 @@ document.addEventListener("submit",async e=>{
   }
 });
 
+document.addEventListener("change",async e=>{
+  if(e.target.name!=="file"||e.target.form?.id!=="shipment-form")return;
+  const file=e.target.files?.[0],status=$("#qr-status"),tracking=e.target.form.elements.tracking;
+  if(!file){status.textContent="";return;}
+  status.className="qr-status scanning";status.textContent="Buscando código QR...";
+  try{const raw=await scanQrFromFile(file);if(raw){tracking.value=extractTracking(raw);status.className="qr-status success";status.textContent=`QR detectado: ${tracking.value}`;}else{status.className="qr-status warning";status.textContent="No se encontró un QR legible. Puedes escribir el tracking manualmente.";}}catch(error){console.error(error);status.className="qr-status warning";status.textContent="No se pudo leer el QR. Puedes escribir el tracking manualmente.";}
+});
+
+async function scanQrFromFile(file){
+  if(file.type==="application/pdf"){
+    const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+    for(let pageNumber=1;pageNumber<=Math.min(pdf.numPages,5);pageNumber++){
+      const page=await pdf.getPage(pageNumber),viewport=page.getViewport({scale:2.2}),canvas=document.createElement("canvas"),ctx=canvas.getContext("2d",{willReadFrequently:true});
+      canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);await page.render({canvasContext:ctx,viewport}).promise;
+      const found=scanCanvas(ctx,canvas.width,canvas.height);if(found)return found;
+    }
+    return null;
+  }
+  const bitmap=await createImageBitmap(file),max=2400,scale=Math.min(1,max/Math.max(bitmap.width,bitmap.height)),canvas=document.createElement("canvas"),ctx=canvas.getContext("2d",{willReadFrequently:true});
+  canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();return scanCanvas(ctx,canvas.width,canvas.height);
+}
+function scanCanvas(ctx,width,height){const pixels=ctx.getImageData(0,0,width,height),result=jsQR(pixels.data,width,height,{inversionAttempts:"attemptBoth"});return result?.data?.trim()||null;}
+function extractTracking(raw){
+  const text=String(raw).trim();
+  try{const url=new URL(text);for(const key of ["tracking","track","guia","guide","codigo","code","numero","number","id"]){const value=url.searchParams.get(key);if(value)return value.trim();}const parts=url.pathname.split("/").filter(Boolean).reverse();const part=parts.find(v=>/^[a-z0-9._-]{6,}$/i.test(v));if(part)return decodeURIComponent(part);}catch{}
+  if(/^[a-z0-9._-]{5,}$/i.test(text))return text;
+  const candidates=text.match(/[a-z0-9][a-z0-9._-]{5,}/gi)||[];return candidates.sort((a,b)=>b.length-a.length)[0]||text;
+}
+
 function openFile(id){const s=state.shipments.find(x=>String(x.id)===String(id)),url=s?.documento?.url||s?.documento?.datos;if(!url)return alert("Este envío no tiene un archivo adjunto.");window.open(url,"_blank","noopener");}
 async function deleteShipment(id,clientId){try{const s=state.shipments.find(x=>String(x.id)===String(id));setCloudStatus("Eliminando...");if(s?.documento?.path){const {error}=await supabase.storage.from("workera-envios").remove([s.documento.path]);if(error)throw error;}await deleteDoc(doc(db,"envioRegistros",String(id)));close();}catch(error){firebaseError(error);}}
 function openWhatsApp(clientId){const c=clientById(clientId),number=whatsappNumber(c?.contacto);if(number.length<9)return alert("El contacto de este cliente no contiene un número de WhatsApp válido.");const message=encodeURIComponent(`Hola, ${c.razon}. Le escribimos de Workera respecto a su envío.`);window.open(`https://wa.me/${number}?text=${message}`,"_blank","noopener");}
-function openShipmentForm(clientId){const c=clientById(clientId);if(!c)return;modal(`Nuevo envío · ${c.razon}`,`<form class="form" id="shipment-form"><input type="hidden" name="clientId" value="${c.id}"><div class="client-summary"><b>${esc(c.razon)}</b><span>RUC ${esc(c.ruc)} · ${esc(c.contacto)}</span></div><label>Fecha en que se envió<input name="fecha" type="date" value="${today()}" required></label><label>Serie del equipo<input name="serie" placeholder="Ej. ZK-2026-001"></label><label>Tracking / guía<input name="tracking" placeholder="Código de seguimiento"></label><label>Adjuntar imagen o PDF<input name="file" type="file" accept="application/pdf,image/jpeg,image/png,image/webp"><small>Disponible desde cualquier dispositivo mediante Supabase. Máximo 4 MB.</small></label><label>Observación<textarea name="nota" rows="3" placeholder="Opcional"></textarea></label><button>Guardar envío</button></form>`);}
+function openShipmentForm(clientId){const c=clientById(clientId);if(!c)return;modal(`Nuevo envío · ${c.razon}`,`<form class="form" id="shipment-form"><input type="hidden" name="clientId" value="${c.id}"><div class="client-summary"><b>${esc(c.razon)}</b><span>RUC ${esc(c.ruc)} · ${esc(c.contacto)}</span></div><label>Fecha en que se envió<input name="fecha" type="date" value="${today()}" required></label><label>Serie del equipo<input name="serie" placeholder="Ej. ZK-2026-001"></label><label>Tracking / guía<input name="tracking" placeholder="Se completará al detectar el QR"></label><label>Adjuntar imagen o PDF<input name="file" type="file" accept="application/pdf,image/jpeg,image/png,image/webp"><small>Al seleccionarlo se leerá automáticamente el QR. Máximo 4 MB.</small></label><div id="qr-status" class="qr-status"></div><label>Observación<textarea name="nota" rows="3" placeholder="Opcional"></textarea></label><button>Guardar envío</button></form>`);}
 function openClient(id){const c=clientById(id);if(!c)return;const list=clientShipments(id);modal(c.razon,`<div class="client-header"><div><span class="label">RUC</span><b>${esc(c.ruc)}</b></div><div><span class="label">CONTACTO</span><b>${esc(c.contacto)}</b></div><div class="client-actions"><button class="whatsapp-btn" data-action="whatsapp" data-id="${c.id}">${whatsappIcon} WhatsApp</button><button class="primary dark" data-action="new-shipment" data-id="${c.id}">+ Agregar envío</button></div></div><h3 class="subheading">Historial de envíos</h3><div class="shipment-list">${list.map(s=>shipmentRow(s,c,true)).join("")||'<div class="empty">Todavía no hay series, tracking ni PDF para este cliente.</div>'}</div>`,true);}
 function shipmentRow(s,c,actions=false){const isImage=s.documento?.tipo?.startsWith("image/");return `<article class="shipment-row"><div class="shipment-date"><b>${formatDate(s.fecha)}</b><span>${esc(s.serie)||"Sin serie"}</span></div><div><span class="label">TRACKING</span><b>${esc(s.tracking)||"Sin tracking"}</b><small>${esc(s.nota)||""}</small></div><div><span class="label">ARCHIVO</span>${s.documento?`<button class="link-btn" data-action="open-file" data-id="${s.id}">${isImage?"🖼️":"📄"} ${esc(s.documento.nombre)}</button>`:"<span>Sin archivo</span>"}</div>${actions?`<button class="danger-link" data-action="delete-shipment" data-id="${s.id}" data-client="${c.id}">Eliminar</button>`:""}</article>`;}
 
