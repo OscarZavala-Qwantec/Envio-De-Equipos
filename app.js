@@ -1,41 +1,68 @@
 const state={
- clients: JSON.parse(localStorage.getItem("we_clients")||"[]"),
- tickets: JSON.parse(localStorage.getItem("we_tickets")||"[]"),
- equipment: JSON.parse(localStorage.getItem("we_equipment")||"[]"),
- shipments: JSON.parse(localStorage.getItem("we_shipments")||"[]"),
- available: JSON.parse(localStorage.getItem("we_available")||"[]"),
- blocked: JSON.parse(localStorage.getItem("we_blocked")||"[]"),
- month:new Date()
+  clients:JSON.parse(localStorage.getItem("we_clients")||"[]"),
+  shipments:JSON.parse(localStorage.getItem("we_shipments")||"[]"),
+  month:new Date()
 };
-const save=()=>["clients","tickets","equipment","shipments","available","blocked"].forEach(k=>localStorage.setItem("we_"+k,JSON.stringify(state[k])));
 const $=s=>document.querySelector(s);
-const modal=(title,html)=>{$("#modal-content").innerHTML=`<h2>${title}</h2>${html}`;$("#modal").classList.remove("hidden")};
+const esc=v=>String(v??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
+const normalize=v=>String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+const save=()=>{localStorage.setItem("we_clients",JSON.stringify(state.clients));localStorage.setItem("we_shipments",JSON.stringify(state.shipments));};
+const modal=(title,html,wide=false)=>{$("#modal-content").innerHTML=`<h2>${esc(title)}</h2>${html}`;$("#modal .modal-card").classList.toggle("wide",wide);$("#modal").classList.remove("hidden")};
 const close=()=>$("#modal").classList.add("hidden");
+const clientById=id=>state.clients.find(c=>String(c.id)===String(id));
+const clientShipments=id=>state.shipments.filter(s=>String(s.clientId)===String(id)).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+const today=()=>new Date().toISOString().slice(0,10);
+
 $("#modal-close").onclick=close;
 document.querySelectorAll(".nav-item").forEach(b=>b.onclick=()=>show(b.dataset.view));
 document.querySelectorAll("[data-view-link]").forEach(b=>b.onclick=()=>show(b.dataset.viewLink));
-function show(v){document.querySelectorAll(".view").forEach(x=>x.classList.toggle("active",x.id===v));document.querySelectorAll(".nav-item").forEach(x=>x.classList.toggle("active",x.dataset.view===v));$("#page-title").textContent={dashboard:"Resumen",clientes:"Clientes",tracking:"Tickets / Tracking",calendario:"Calendario",inventario:"Inventario"}[v];render()}
-document.addEventListener("click",e=>{const a=e.target.closest("[data-action]");if(!a)return;const t=a.dataset.action;
- if(t==="new-client") modal("Agregar cliente",`<form class="form" id="client-form"><label>RUC<input name="ruc" required></label><label>Razón social<input name="razon" required></label><label>Contacto<input name="contacto"></label><label>Serie / series<input name="series" placeholder="Separar por comas"></label><button>Guardar cliente</button></form>`);
- if(t==="new-ticket") modal("Nuevo ticket / tracking",`<form class="form" id="ticket-form"><label>Cliente<input name="cliente" required></label><label>RUC<input name="ruc"></label><label>Serie<input name="serie"></label><label>Código de tracking<input name="tracking" required></label><label>Archivo PDF / imagen<input name="file" type="file" accept=".pdf,image/*"></label><label>Estado<select name="estado"><option>Preparando</option><option>En tránsito</option><option>Entregado</option><option>Incidencia</option></select></label><button>Guardar ticket</button></form>`);
- if(t==="new-equipment") modal("Agregar equipo",`<form class="form" id="equipment-form"><label>Serie<input name="serie" required></label><label>Modelo<input name="modelo" required></label><label>Cliente<input name="cliente"></label><label>Ubicación<input name="ubicacion"></label><label>Estado<select name="estado"><option>Disponible</option><option>Reservado</option><option>En tránsito</option><option>Entregado</option><option>Mantenimiento</option></select></label><button>Guardar equipo</button></form>`);
- if(t==="new-shipment") modal("Programar envío",`<form class="form" id="shipment-form"><label>Fecha<input name="fecha" type="date" required></label><label>Cliente<input name="cliente" required></label><label>Serie<input name="serie"></label><label>Destino<input name="destino" required></label><label>Transportista<input name="transportista"></label><button>Programar envío</button></form>`);
+function show(v){document.querySelectorAll(".view").forEach(x=>x.classList.toggle("active",x.id===v));document.querySelectorAll(".nav-item").forEach(x=>x.classList.toggle("active",x.dataset.view===v));$("#page-title").textContent={dashboard:"Resumen",clientes:"Clientes y envíos",calendario:"Calendario"}[v];render();}
+
+document.addEventListener("click",e=>{
+  const a=e.target.closest("[data-action]");if(!a)return;
+  if(a.dataset.action==="new-client") modal("Agregar cliente",`<form class="form" id="client-form"><label>RUC<input name="ruc" inputmode="numeric" maxlength="11" required placeholder="11 dígitos"></label><label>Razón social<input name="razon" required></label><label>Contacto / teléfono<input name="contacto" required></label><p class="form-help">Las series, tracking y PDF se agregan después, dentro de la ficha del cliente.</p><button>Guardar y abrir cliente</button></form>`);
+  if(a.dataset.action==="open-client") openClient(a.dataset.id);
+  if(a.dataset.action==="new-shipment") openShipmentForm(a.dataset.id);
+  if(a.dataset.action==="open-pdf") openPdf(a.dataset.id);
+  if(a.dataset.action==="delete-shipment"&&confirm("¿Eliminar este envío?")){state.shipments=state.shipments.filter(s=>String(s.id)!==String(a.dataset.id));save();const clientId=a.dataset.client;openClient(clientId);render();}
 });
-document.addEventListener("submit",e=>{e.preventDefault();const f=new FormData(e.target);
- if(e.target.id==="client-form"){state.clients.push({ruc:f.get("ruc"),razon:f.get("razon"),contacto:f.get("contacto"),series:f.get("series")});}
- if(e.target.id==="ticket-form"){state.tickets.push({id:Date.now(),cliente:f.get("cliente"),ruc:f.get("ruc"),serie:f.get("serie"),tracking:f.get("tracking"),archivo:f.get("file")?.name||"",estado:f.get("estado")});}
- if(e.target.id==="equipment-form"){state.equipment.push(Object.fromEntries(f));}
- if(e.target.id==="shipment-form"){state.shipments.push({id:Date.now(),...Object.fromEntries(f)});}
- save();close();render();
+
+document.addEventListener("submit",async e=>{
+  e.preventDefault();const f=new FormData(e.target);
+  if(e.target.id==="client-form"){
+    const ruc=String(f.get("ruc")).trim();
+    if(!/^\d{11}$/.test(ruc))return alert("El RUC debe tener 11 dígitos.");
+    if(state.clients.some(c=>c.ruc===ruc))return alert("Ya existe un cliente con este RUC.");
+    const client={id:Date.now(),ruc,razon:String(f.get("razon")).trim(),contacto:String(f.get("contacto")).trim()};state.clients.push(client);save();openClient(client.id);render();
+  }
+  if(e.target.id==="shipment-form"){
+    const file=f.get("file");let documento=null;
+    if(file&&file.size){
+      if(file.type!=="application/pdf")return alert("Adjunta únicamente un archivo PDF.");
+      if(file.size>4*1024*1024)return alert("El PDF no debe superar 4 MB en esta versión.");
+      documento={nombre:file.name,tipo:file.type,datos:await fileToDataUrl(file)};
+    }
+    state.shipments.push({id:Date.now(),clientId:Number(f.get("clientId")),fecha:f.get("fecha"),serie:String(f.get("serie")||"").trim(),tracking:String(f.get("tracking")||"").trim(),nota:String(f.get("nota")||"").trim(),documento});
+    save();openClient(f.get("clientId"));render();
+  }
 });
-$("#tracking-search").addEventListener("input",renderTickets);
-$("#prev-month").onclick=()=>{state.month.setMonth(state.month.getMonth()-1);renderCalendar()};
-$("#next-month").onclick=()=>{state.month.setMonth(state.month.getMonth()+1);renderCalendar()};
-function render(){renderClients();renderTickets();renderInventory();renderCalendar();renderDashboard()}
-function renderClients(){$("#clients-table").innerHTML=state.clients.map(c=>`<tr><td>${c.ruc}</td><td><b>${c.razon}</b></td><td>${c.contacto||"—"}</td><td>${c.series||"—"}</td><td><button class="ghost">Ver</button></td></tr>`).join("")||`<tr><td colspan="5" class="empty">Aún no hay clientes.</td></tr>`}
-function renderTickets(){const q=($("#tracking-search")?.value||"").toLowerCase();$("#tickets-grid").innerHTML=state.tickets.filter(t=>Object.values(t).join(" ").toLowerCase().includes(q)).map(t=>`<article class="ticket"><span class="badge">${t.estado}</span><h3>${t.cliente}</h3><p>RUC: ${t.ruc||"—"}</p><p>Serie: ${t.serie||"—"}</p><p>Tracking: <b>${t.tracking}</b></p><p>Archivo: ${t.archivo||"Sin archivo"}</p></article>`).join("")||`<div class="panel empty">No hay tickets registrados.</div>`}
-function renderInventory(){$("#inventory-table").innerHTML=state.equipment.map(e=>`<tr><td><b>${e.serie}</b></td><td>${e.modelo}</td><td>${e.cliente||"—"}</td><td><span class="badge">${e.estado}</span></td><td>${e.ubicacion||"—"}</td></tr>`).join("")||`<tr><td colspan="5" class="empty">No hay equipos registrados.</td></tr>`}
-function renderDashboard(){$("#stat-active").textContent=state.shipments.length;$("#stat-delivered").textContent=state.tickets.filter(t=>t.estado==="Entregado").length;$("#stat-stock").textContent=state.equipment.filter(e=>e.estado==="Disponible").length;$("#stat-tickets").textContent=state.tickets.filter(t=>t.estado!=="Entregado").length;const x=state.shipments.slice().sort((a,b)=>a.fecha.localeCompare(b.fecha)).slice(0,5);$("#upcoming-list").innerHTML=x.map(s=>`<div class="ticket" style="margin:8px 0"><b>${s.fecha}</b> · ${s.cliente} · ${s.destino}</div>`).join("")||`<div class="empty">No hay envíos programados.</div>`}
-function renderCalendar(){const y=state.month.getFullYear(),m=state.month.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0);$("#month-label").textContent=new Intl.DateTimeFormat("es-PE",{month:"long",year:"numeric"}).format(first);const names=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];let h=names.map(n=>`<div class="day-name">${n}</div>`).join("");let offset=(first.getDay()+6)%7;for(let i=0;i<offset;i++)h+=`<div class="day muted"></div>`;for(let d=1;d<=last.getDate();d++){const key=`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`,ship=state.shipments.find(s=>s.fecha===key),cl=ship?"shipment":state.blocked.includes(key)?"blocked":state.available.includes(key)?"available":"";h+=`<div class="day ${cl}" data-date="${key}"><div class="num">${d}</div>${ship?`<div class="event">🚚 ${ship.cliente}</div>`:""}${cl==="available"?`<div class="event">Disponible</div>`:""}${cl==="blocked"?`<div class="event">No disponible</div>`:""}</div>`}$("#calendar-grid").innerHTML=h}
-document.addEventListener("click",e=>{const day=e.target.closest(".day[data-date]");if(!day)return;const date=day.dataset.date;if(state.blocked.includes(date))state.blocked=state.blocked.filter(x=>x!==date);else if(state.available.includes(date))state.available=state.available.filter(x=>x!==date);else state.available.push(date);save();renderCalendar()});
+
+function fileToDataUrl(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);});}
+function openPdf(id){const s=state.shipments.find(x=>String(x.id)===String(id));if(!s?.documento?.datos)return alert("Este envío no tiene PDF adjunto.");const w=window.open();if(!w)return alert("Permite las ventanas emergentes para abrir el PDF.");w.location.href=s.documento.datos;}
+function openShipmentForm(clientId){const c=clientById(clientId);if(!c)return;modal(`Nuevo envío · ${c.razon}`,`<form class="form" id="shipment-form"><input type="hidden" name="clientId" value="${c.id}"><div class="client-summary"><b>${esc(c.razon)}</b><span>RUC ${esc(c.ruc)} · ${esc(c.contacto)}</span></div><label>Fecha en que se envió<input name="fecha" type="date" value="${today()}" required></label><label>Serie del equipo<input name="serie" placeholder="Ej. ZK-2026-001"></label><label>Tracking / guía<input name="tracking" placeholder="Código de seguimiento"></label><label>Adjuntar PDF<input name="file" type="file" accept="application/pdf"><small>Máximo 4 MB.</small></label><label>Observación<textarea name="nota" rows="3" placeholder="Opcional"></textarea></label><button>Guardar envío</button></form>`);}
+function openClient(id){const c=clientById(id);if(!c)return;const list=clientShipments(id);modal(c.razon,`<div class="client-header"><div><span class="label">RUC</span><b>${esc(c.ruc)}</b></div><div><span class="label">CONTACTO</span><b>${esc(c.contacto)}</b></div><button class="primary dark" data-action="new-shipment" data-id="${c.id}">+ Agregar envío</button></div><h3 class="subheading">Historial de envíos</h3><div class="shipment-list">${list.map(s=>shipmentRow(s,c,true)).join("")||'<div class="empty">Todavía no hay series, tracking ni PDF para este cliente.</div>'}</div>`,true);}
+function shipmentRow(s,c,actions=false){return `<article class="shipment-row"><div class="shipment-date"><b>${formatDate(s.fecha)}</b><span>${esc(s.serie)||"Sin serie"}</span></div><div><span class="label">TRACKING</span><b>${esc(s.tracking)||"Sin tracking"}</b><small>${esc(s.nota)||""}</small></div><div><span class="label">DOCUMENTO</span>${s.documento?`<button class="link-btn" data-action="open-pdf" data-id="${s.id}">📄 ${esc(s.documento.nombre)}</button>`:"<span>Sin PDF</span>"}</div>${actions?`<button class="danger-link" data-action="delete-shipment" data-id="${s.id}" data-client="${c.id}">Eliminar</button>`:""}</article>`;}
+
+$("#client-search").addEventListener("input",renderClients);
+$("#calendar-search").addEventListener("input",renderCalendar);
+$("#prev-month").onclick=()=>{state.month=new Date(state.month.getFullYear(),state.month.getMonth()-1,1);renderCalendar();};
+$("#next-month").onclick=()=>{state.month=new Date(state.month.getFullYear(),state.month.getMonth()+1,1);renderCalendar();};
+$("#today").onclick=()=>{state.month=new Date();renderCalendar();};
+
+function render(){renderClients();renderCalendar();renderDashboard();}
+function renderClients(){const q=normalize($("#client-search")?.value);const rows=state.clients.filter(c=>normalize(`${c.ruc} ${c.razon} ${c.contacto}`).includes(q)).map(c=>{const ss=clientShipments(c.id);return `<tr><td>${esc(c.ruc)}</td><td><b>${esc(c.razon)}</b></td><td>${esc(c.contacto)}</td><td><span class="count">${ss.length}</span></td><td>${ss[0]?formatDate(ss[0].fecha):"—"}</td><td><button class="ghost action" data-action="open-client" data-id="${c.id}">Abrir ficha →</button></td></tr>`;}).join("");$("#clients-table").innerHTML=rows||'<tr><td colspan="6" class="empty">No se encontraron clientes.</td></tr>';}
+function renderDashboard(){const now=new Date(),prefix=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;$("#stat-clients").textContent=state.clients.length;$("#stat-shipments").textContent=state.shipments.length;$("#stat-month").textContent=state.shipments.filter(s=>s.fecha.startsWith(prefix)).length;$("#stat-pdf").textContent=state.shipments.filter(s=>s.documento).length;const latest=state.shipments.slice().sort((a,b)=>b.fecha.localeCompare(a.fecha)).slice(0,5);$("#recent-list").innerHTML=latest.map(s=>{const c=clientById(s.clientId)||{};return shipmentRow(s,c);}).join("")||'<div class="empty">No hay envíos registrados.</div>';}
+function matchesShipment(s,q){const c=clientById(s.clientId)||{};return normalize(`${c.ruc} ${c.razon} ${c.contacto} ${s.serie} ${s.tracking} ${s.nota}`).includes(q);}
+function renderCalendar(){const y=state.month.getFullYear(),m=state.month.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0),q=normalize($("#calendar-search")?.value);$("#month-label").textContent=new Intl.DateTimeFormat("es-PE",{month:"long",year:"numeric"}).format(first);let h=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"].map(n=>`<div class="day-name">${n}</div>`).join("");for(let i=0;i<(first.getDay()+6)%7;i++)h+='<div class="day muted"></div>';for(let d=1;d<=last.getDate();d++){const key=`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`,items=state.shipments.filter(s=>s.fecha===key&&matchesShipment(s,q));h+=`<div class="day ${items.length?"has-shipment":""}"><div class="num">${d}</div>${items.slice(0,3).map(s=>{const c=clientById(s.clientId)||{};return `<button class="event" data-action="open-client" data-id="${c.id}">${esc(c.razon||"Cliente")}${s.serie?` · ${esc(s.serie)}`:""}</button>`;}).join("")}${items.length>3?`<div class="more">+${items.length-3} más</div>`:""}</div>`;}$("#calendar-grid").innerHTML=h;const prefix=`${y}-${String(m+1).padStart(2,"0")}`,monthItems=state.shipments.filter(s=>s.fecha.startsWith(prefix)&&matchesShipment(s,q)).sort((a,b)=>a.fecha.localeCompare(b.fecha));$("#month-shipments").innerHTML=monthItems.map(s=>{const c=clientById(s.clientId)||{};return shipmentRow(s,c);}).join("")||'<div class="empty">No hay envíos que coincidan en este mes.</div>';}
+function formatDate(v){if(!v)return"—";return new Intl.DateTimeFormat("es-PE",{day:"2-digit",month:"short",year:"numeric",timeZone:"UTC"}).format(new Date(`${v}T00:00:00Z`));}
 render();
