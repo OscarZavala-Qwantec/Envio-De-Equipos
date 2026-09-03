@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Workera · Gestión de Envíos</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="assets/logo-workera.png" alt="Workera">
+        <span>Envíos</span>
+      </div>
+      <nav>
+        <button class="nav-item active" data-view="dashboard">Resumen</button>
+        <button class="nav-item" data-view="clientes">Clientes</button>
+        <button class="nav-item" data-view="tracking">Tickets / Tracking</button>
+        <button class="nav-item" data-view="calendario">Calendario</button>
+        <button class="nav-item" data-view="inventario">Inventario</button>
+      </nav>
+      <div class="sidebar-foot">Sistema de gestión logística</div>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">WORKERA</p>
+          <h1 id="page-title">Resumen</h1>
+        </div>
+        <div class="top-actions">
+          <span class="status-dot"></span> Operativo
+        </div>
+      </header>
+
+      <section id="dashboard" class="view active">
+        <div class="hero">
+          <div><span class="eyebrow">CONTROL DE ENVÍOS</span><h2>Todo tu despacho en un solo lugar.</h2>
+          <p>Clientes, equipos, documentos, tracking y disponibilidad de envío.</p></div>
+          <button class="primary" data-action="new-shipment">+ Nuevo envío</button>
+        </div>
+        <div class="stats">
+          <div class="stat"><span>Envíos activos</span><strong id="stat-active">0</strong></div>
+          <div class="stat"><span>Entregados</span><strong id="stat-delivered">0</strong></div>
+          <div class="stat"><span>Equipos disponibles</span><strong id="stat-stock">0</strong></div>
+          <div class="stat"><span>Tickets abiertos</span><strong id="stat-tickets">0</strong></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Próximos envíos</h3><button class="ghost" data-view-link="calendario">Ver calendario</button></div>
+          <div id="upcoming-list" class="empty">No hay envíos programados.</div>
+        </div>
+      </section>
+
+      <section id="clientes" class="view">
+        <div class="section-head"><div><h2>Clientes</h2><p>Gestiona RUC, razón social y equipos asociados.</p></div>
+        <button class="primary" data-action="new-client">+ Agregar cliente</button></div>
+        <div class="panel"><div class="table-wrap"><table><thead><tr><th>RUC</th><th>Razón social</th><th>Contacto</th><th>Series</th><th>Acciones</th></tr></thead>
+        <tbody id="clients-table"></tbody></table></div></div>
+      </section>
+
+      <section id="tracking" class="view">
+        <div class="section-head"><div><h2>Tickets / Tracking</h2><p>Centraliza guías, fotos, PDFs y evidencias por cliente.</p></div>
+        <button class="primary" data-action="new-ticket">+ Nuevo ticket</button></div>
+        <div class="toolbar"><input id="tracking-search" placeholder="Buscar por cliente, RUC, serie o código..."></div>
+        <div id="tickets-grid" class="cards"></div>
+      </section>
+
+      <section id="calendario" class="view">
+        <div class="section-head"><div><h2>Calendario de envíos</h2><p>Marca disponibilidad y programa despachos de forma rápida.</p></div>
+        <button class="primary" data-action="new-shipment">+ Programar envío</button></div>
+        <div class="calendar-panel panel">
+          <div class="calendar-controls"><button id="prev-month" class="icon-btn">‹</button><h3 id="month-label"></h3><button id="next-month" class="icon-btn">›</button></div>
+          <div class="legend"><span><i class="available"></i> Disponible</span><span><i class="shipment"></i> Envío</span><span><i class="blocked"></i> No disponible</span></div>
+          <div id="calendar-grid" class="calendar-grid"></div>
+        </div>
+      </section>
+
+      <section id="inventario" class="view">
+        <div class="section-head"><div><h2>Inventario</h2><p>Control de equipos, series y estado de disponibilidad.</p></div>
+        <button class="primary" data-action="new-equipment">+ Agregar equipo</button></div>
+        <div class="panel"><div class="table-wrap"><table><thead><tr><th>Serie</th><th>Modelo</th><th>Cliente</th><th>Estado</th><th>Ubicación</th></tr></thead>
+        <tbody id="inventory-table"></tbody></table></div></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="modal" class="modal hidden"><div class="modal-card"><button id="modal-close" class="modal-close">×</button><div id="modal-content"></div></div></div>
+  <script src="app.js"></script>
+</body>
+</html>
