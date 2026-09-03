@@ -4,16 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Workera · Gestión de Envíos</title>
-  <link rel="stylesheet" href="styles.css?v=20260903-2">
+  <link rel="stylesheet" href="styles.css?v=20260903-3">
+  <link rel="stylesheet" href="brand.css?v=20260903-3">
 </head>
 <body>
   <div id="app">
     <aside class="sidebar">
       <div class="brand"><img src="assets/logo-workera.png" alt="Workera"><span>Envíos</span></div>
       <nav>
-        <button class="nav-item active" data-view="dashboard">Resumen</button>
-        <button class="nav-item" data-view="clientes">Clientes y envíos</button>
-        <button class="nav-item" data-view="calendario">Calendario</button>
+        <button class="nav-item active" data-view="dashboard"><span class="nav-icon">⌂</span><span>Resumen</span></button>
+        <button class="nav-item" data-view="clientes"><span class="nav-icon">♙</span><span>Clientes</span></button>
+        <button class="nav-item" data-view="calendario"><span class="nav-icon">▦</span><span>Calendario</span></button>
       </nav>
       <div class="sidebar-foot">Sistema de gestión logística</div>
     </aside>
@@ -64,6 +65,6 @@
   </div>
 
   <div id="modal" class="modal hidden"><div class="modal-card"><button id="modal-close" class="modal-close">×</button><div id="modal-content"></div></div></div>
-  <script src="app.js?v=20260903-2"></script>
+  <script src="app.js?v=20260903-3"></script>
 </body>
 </html>
