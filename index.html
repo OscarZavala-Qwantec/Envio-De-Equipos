@@ -50,13 +50,13 @@
           <div><h2>Clientes y envíos</h2><p>Abre un cliente para agregar series, tracking, documentos y fechas.</p></div>
           <div class="section-actions"><button class="secondary" data-action="bulk-clients">Importar clientes</button><button class="secondary yellow" data-action="bulk-series">Importar series</button><button class="primary dark" data-action="new-client">+ Agregar cliente</button></div>
         </div>
-        <div class="toolbar"><input id="client-search" placeholder="Buscar por RUC, razón social o contacto..."></div>
+        <div class="toolbar"><input id="client-search" placeholder="Buscar por RUC, razón social, teléfono o serie..."></div>
         <div class="panel"><div class="table-wrap"><table><thead><tr><th>RUC</th><th>Razón social</th><th>Contacto</th><th>Series</th><th>Envíos</th><th>Último envío</th><th>Acciones</th></tr></thead><tbody id="clients-table"></tbody></table></div></div>
       </section>
 
       <section id="calendario" class="view">
         <div class="section-head"><div><h2>Calendario de envíos</h2><p>Cada archivo o tracking queda registrado en la fecha en que fue enviado.</p></div></div>
-        <div class="toolbar"><input id="calendar-search" placeholder="Filtrar por RUC, razón social, contacto, serie o tracking..."></div>
+        <div class="toolbar"><input id="calendar-search" placeholder="Filtrar por RUC, razón social, teléfono, cualquier serie o tracking..."></div>
         <div class="calendar-panel panel">
           <div class="calendar-controls"><button id="prev-month" class="icon-btn">‹</button><h3 id="month-label"></h3><button id="next-month" class="icon-btn">›</button><button id="today" class="ghost calendar-today">Hoy</button></div>
           <div id="calendar-grid" class="calendar-grid"></div>
@@ -67,6 +67,6 @@
   </div>
 
   <div id="modal" class="modal hidden"><div class="modal-card"><button id="modal-close" class="modal-close">×</button><div id="modal-content"></div></div></div>
-  <script type="module" src="app.js?v=20260903-13"></script>
+  <script type="module" src="app.js?v=20260903-14"></script>
 </body>
 </html>
