@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="assets/favicon-workera.svg?v=1">
   <link rel="apple-touch-icon" href="assets/logo-workera.png">
   <link rel="stylesheet" href="styles.css?v=20260903-3">
-  <link rel="stylesheet" href="brand.css?v=20260904-10">
+  <link rel="stylesheet" href="brand.css?v=20260904-11">
 </head>
 <body>
   <div id="app">
@@ -48,7 +48,7 @@
       <section id="clientes" class="view">
         <div class="section-head">
           <div><h2>Clientes y envíos</h2><p>Abre un cliente para agregar series, tracking, documentos y fechas.</p></div>
-          <div class="section-actions"><button class="secondary" data-action="bulk-clients">Importar clientes</button><button class="secondary yellow" data-action="bulk-series">Importar series</button><button class="primary dark" data-action="new-client">+ Agregar cliente</button></div>
+          <div class="section-actions"><button class="secondary sales-import" data-action="review-sales">Revisar nuevas ventas</button><button class="secondary" data-action="bulk-clients">Importar clientes</button><button class="secondary yellow" data-action="bulk-series">Importar series</button><button class="primary dark" data-action="new-client">+ Agregar cliente</button></div>
         </div>
         <div class="toolbar"><input id="client-search" placeholder="Buscar por RUC, razón social, teléfono o serie..."></div>
         <div class="panel"><div class="table-wrap"><table><thead><tr><th>RUC</th><th>Razón social</th><th>Contacto</th><th>Series</th><th>Ventas / pago</th><th>Envíos</th><th>Último envío</th><th>Acciones</th></tr></thead><tbody id="clients-table"></tbody></table></div><div id="clients-pagination" class="pagination"></div></div>
@@ -67,6 +67,6 @@
   </div>
 
   <div id="modal" class="modal hidden"><div class="modal-card"><button id="modal-close" class="modal-close">×</button><div id="modal-content"></div></div></div>
-  <script type="module" src="app.js?v=20260904-21"></script>
+  <script type="module" src="app.js?v=20260904-22"></script>
 </body>
 </html>
