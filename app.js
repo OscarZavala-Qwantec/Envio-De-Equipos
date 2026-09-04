@@ -120,14 +120,14 @@ document.addEventListener("submit",async e=>{
   if(e.target.id==="series-status-form"){
     const clientId=String(f.get("clientId")),saleId=String(f.get("saleId")),numero=String(f.get("numeroSerie")),estado=String(f.get("estado")||"PENDIENTE").toUpperCase(),fechaEntrega=String(f.get("fechaEntrega")||""),client=clientById(clientId),sales=clientSales(client),sale=sales.find(item=>String(item.id)===saleId);if(!sale)return alert("No se encontró la venta.");
     const previous=Array.isArray(sale.seriesInfo)?sale.seriesInfo:[],seriesInfo=[...previous.filter(item=>normalize(item.numero)!==normalize(numero)),{numero,estado,fechaEntrega}],changed={...sale,seriesInfo},ventas=sales.map(item=>String(item.id)===saleId?changed:item);
-    try{setCloudStatus("Actualizando estado de la serie...");await updateDoc(doc(db,"envioClientes",clientId),{ventas,actualizadoEn:serverTimestamp()});if(sale.sourceId)await drivePost({action:"actualizar",id:String(sale.sourceId),numeroSerie:numero,changes:{ESTADO:estado,"Fecha de Entrega":fechaEntrega}});close();setTimeout(()=>openClient(clientId),250);}catch(error){firebaseError(error);}return;
+    try{setCloudStatus("Actualizando estado de la serie...");await updateDoc(doc(db,"envioClientes",clientId),{ventas,actualizadoEn:serverTimestamp()});if(sale.sourceId)await drivePost({action:"guardar",row:{ID:String(sale.sourceId),...driveSaleChanges(sale,client),"Número de Serie":numero,ESTADO:estado,"Fecha de Entrega":fechaEntrega}});close();setTimeout(()=>openClient(clientId),250);}catch(error){firebaseError(error);}return;
   }
   if(e.target.id==="existing-series-sale-form"){
     const clientId=String(f.get("clientId")),saleId=String(f.get("saleId")),series=String(f.get("series")),client=clientById(clientId),sales=clientSales(client),sale=sales.find(item=>String(item.id)===saleId);
     if(!sale||sale.estadoPago!=="pagado")return alert("Selecciona una venta pagada.");
     if(sales.some(item=>(item.series||[]).some(value=>normalize(value)===normalize(series))))return alert("Esta serie ya está asociada a una venta.");
     const ventas=sales.map(item=>String(item.id)===saleId?{...item,series:[...(item.series||[]),series]}:item);
-    try{setCloudStatus("Asignando serie...");await updateDoc(doc(db,"envioClientes",clientId),{ventas,actualizadoEn:serverTimestamp()});close();setTimeout(()=>openClient(clientId),250);}catch(error){firebaseError(error);}return;
+    try{setCloudStatus("Asignando serie...");await updateDoc(doc(db,"envioClientes",clientId),{ventas,actualizadoEn:serverTimestamp()});if(sale.sourceId)await drivePost({action:"guardar",row:{ID:String(sale.sourceId),...driveSaleChanges(sale,client),"Número de Serie":series,ESTADO:"PENDIENTE"}});close();setTimeout(()=>openClient(clientId),250);}catch(error){firebaseError(error);}return;
   }
   if(e.target.id==="payment-proof-form"){
     const clientId=String(f.get("clientId")),saleId=String(f.get("saleId")),client=clientById(clientId),sales=clientSales(client),sale=sales.find(item=>String(item.id)===saleId),file=f.get("file");if(!sale)return alert("No se encontró la venta.");let comprobantePago=sale.comprobantePago||null,newFilePath="";
