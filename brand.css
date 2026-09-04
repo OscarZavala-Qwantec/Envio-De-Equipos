@@ -33,3 +33,5 @@ body{background:var(--workera-bg);color:var(--workera-ink)}
 @media(max-width:700px){.section-actions{grid-template-columns:1fr 1fr}.section-actions .sales-import{grid-column:1/-1}}
 .delete-sale-btn{padding:8px 11px;border:1px solid #ffc7d5;border-radius:8px;background:#fff4f7;color:#b00035;font-size:11px;font-weight:800;cursor:pointer}.delete-sale-btn:hover{background:#ffe3ea}
 @media(max-width:700px){.delete-sale-btn{width:100%}}
+.payment-proof-btn{padding:8px 11px;border:1px solid rgba(64,175,227,.35);border-radius:8px;background:#eef8fd;color:#12617d;font-size:11px;font-weight:800;cursor:pointer}.payment-proof-btn:hover{background:var(--workera-blue);color:#fff}
+@media(max-width:700px){.payment-proof-btn{width:100%}}
