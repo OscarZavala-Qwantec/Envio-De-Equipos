@@ -6,7 +6,7 @@
   <title>Workera · Gestión de Envíos</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon-workera.svg?v=1">
   <link rel="apple-touch-icon" href="assets/logo-workera.png">
-  <link rel="stylesheet" href="styles.css?v=20260907-8">
+  <link rel="stylesheet" href="styles.css?v=20260907-9">
   <link rel="stylesheet" href="brand.css?v=20260904-13">
 </head>
 <body>
@@ -55,10 +55,11 @@
       </section>
 
       <section id="calendario" class="view">
-        <div class="section-head"><div><h2>Calendario de envíos</h2><p>Cada archivo o tracking queda registrado en la fecha en que fue enviado.</p></div><button class="primary dark" data-action="new-shipment-global">+ Crear envío</button></div>
+        <div class="section-head"><div><h2>Calendario de envíos</h2><p>Programa zonas por fecha o por días recurrentes y consulta la carga diaria de envíos.</p></div><div class="calendar-head-actions"><button class="zone-button" data-action="new-zone">+ Programar zona</button><button class="primary dark" data-action="new-shipment-global">+ Crear envío</button></div></div>
         <div class="toolbar"><input id="calendar-search" placeholder="Filtrar por RUC, razón social, teléfono, cualquier serie o tracking..."></div>
         <div class="calendar-panel panel">
           <div class="calendar-controls"><button id="prev-month" class="icon-btn">‹</button><h3 id="month-label"></h3><button id="next-month" class="icon-btn">›</button><button id="today" class="ghost calendar-today">Hoy</button></div>
+          <div id="zone-legend" class="zone-legend"></div>
           <div id="calendar-grid" class="calendar-grid"></div>
         </div>
         <div class="panel calendar-results"><h3>Envíos del mes</h3><div id="month-shipments"></div></div>
@@ -67,6 +68,6 @@
   </div>
 
   <div id="modal" class="modal hidden"><div class="modal-card"><button id="modal-close" class="modal-close">×</button><div id="modal-content"></div></div></div>
-  <script type="module" src="app.js?v=20260907-7"></script>
+  <script type="module" src="app.js?v=20260907-8"></script>
 </body>
 </html>
